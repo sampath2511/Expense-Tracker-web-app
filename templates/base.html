@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Personal Expense Tracker{% endblock %} | Finance Dashboard</title>
+    <meta name="description" content="A modern, clean, and intuitive personal finance tracker to monitor your income, expenses, and savings.">
+
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <!-- Application Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <header class="navbar">
+        <div class="nav-container">
+            <a href="{{ url_for('index') }}" class="brand-logo" id="nav-brand">
+                <span class="brand-icon"><i class="fa-solid fa-wallet"></i></span>
+                <span class="brand-name">SpendWise</span>
+            </a>
+
+            <nav class="nav-menu">
+                <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" id="nav-dashboard-link">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="{{ url_for('transactions') }}" class="nav-link {% if request.endpoint == 'transactions' %}active{% endif %}" id="nav-transactions-link">
+                    <i class="fa-solid fa-receipt"></i>
+                    <span>Transactions</span>
+                </a>
+            </nav>
+
+            <div class="nav-actions">
+                <button type="button" class="btn btn-primary" id="open-add-modal-btn" onclick="openAddModal()">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Add Transaction</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Flash Messages Container -->
+    <div class="container message-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}" role="alert">
+                        <div class="alert-content">
+                            <i class="fa-solid {% if category == 'success' %}fa-circle-check{% elif category == 'danger' %}fa-circle-exclamation{% else %}fa-circle-info{% endif %}"></i>
+                            <span>{{ message }}</span>
+                        </div>
+                        <button type="button" class="alert-close" onclick="this.parentElement.remove()" aria-label="Close message">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container footer-content">
+            <p>&copy; 2026 SpendWise &bull; Personal Expense Tracker Portfolio Project</p>
+            <p class="footer-subtext">Built with Python Flask, SQLite, and Chart.js</p>
+        </div>
+    </footer>
+
+    <!-- Add Transaction Modal -->
+    <div class="modal-overlay" id="add-transaction-modal" aria-hidden="true">
+        <div class="modal-card" role="dialog" aria-labelledby="add-modal-title">
+            <div class="modal-header">
+                <h3 id="add-modal-title"><i class="fa-solid fa-plus-circle text-primary"></i> Add Transaction</h3>
+                <button type="button" class="btn-close" onclick="closeAddModal()" aria-label="Close modal">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form action="{{ url_for('add_transaction') }}" method="POST" id="add-tx-form" onsubmit="return validateTxForm(this)">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="redirect_to" value="{{ request.endpoint or 'index' }}">
+
+                <div class="modal-body">
+                    <!-- Type Selector (Radio Toggle) -->
+                    <div class="form-group">
+                        <label class="form-label">Transaction Type</label>
+                        <div class="type-toggle-group">
+                            <label class="type-toggle-btn expense active">
+                                <input type="radio" name="type" value="expense" checked onchange="handleTypeChange('add', this.value)">
+                                <i class="fa-solid fa-arrow-trend-down"></i> Expense
+                            </label>
+                            <label class="type-toggle-btn income">
+                                <input type="radio" name="type" value="income" onchange="handleTypeChange('add', this.value)">
+                                <i class="fa-solid fa-arrow-trend-up"></i> Income
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Title & Amount in Grid -->
+                    <div class="form-row">
+                        <div class="form-group col-6">
+                            <label for="add-title" class="form-label">Title <span class="required">*</span></label>
+                            <div class="input-with-icon">
+                                <i class="fa-solid fa-tag input-icon"></i>
+                                <input type="text" id="add-title" name="title" class="form-input" placeholder="e.g. Grocery shopping" required maxlength="100">
+                            </div>
+                        </div>
+
+                        <div class="form-group col-6">
+                            <label for="add-amount" class="form-label">Amount ($) <span class="required">*</span></label>
+                            <div class="input-with-icon">
+                                <i class="fa-solid fa-dollar-sign input-icon"></i>
+                                <input type="number" id="add-amount" name="amount" class="form-input" placeholder="0.00" step="0.01" min="0.01" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Category & Date in Grid -->
+                    <div class="form-row">
+                        <div class="form-group col-6">
+                            <label for="add-category" class="form-label">Category <span class="required">*</span></label>
+                            <div class="input-with-icon">
+                                <i class="fa-solid fa-layer-group input-icon"></i>
+                                <select id="add-category" name="category" class="form-input" required>
+                                    <!-- Populated dynamically by JS based on type -->
+                                    {% for cat in expense_categories %}
+                                        <option value="{{ cat }}">{{ cat }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group col-6">
+                            <label for="add-date" class="form-label">Date <span class="required">*</span></label>
+                            <div class="input-with-icon">
+                                <i class="fa-solid fa-calendar-days input-icon"></i>
+                                <input type="date" id="add-date" name="date" class="form-input" value="{{ current_date }}" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="form-group">
+                        <label for="add-description" class="form-label">Description <span class="text-muted">(Optional)</span></label>
+                        <textarea id="add-description" name="description" class="form-input form-textarea" rows="2" placeholder="Additional notes or details..."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeAddModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="save-tx-btn">
+                        <i class="fa-solid fa-check"></i> Save Transaction
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Transaction Modal -->
+    <div class="modal-overlay" id="edit-transaction-modal" aria-hidden="true">
+        <div class="modal-card" role="dialog" aria-labelledby="edit-modal-title">
+            <div class="modal-header">
+                <h3 id="edit-modal-title"><i class="fa-solid fa-pen-to-square text-primary"></i> Edit Transaction</h3>
+                <button type="button" class="btn-close" onclick="closeEditModal()" aria-label="Close modal">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form action="" method="POST" id="edit-tx-form" onsubmit="return validateTxForm(this)">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="redirect_to" value="{{ request.endpoint or 'transactions' }}">
+
+                <div class="modal-body">
+                    <!-- Type Selector (Radio Toggle) -->
+                    <div class="form-group">
+                        <label class="form-label">Transaction Type</label>
+                        <div class="type-toggle-group">
+                            <label class="type-toggle-btn expense" id="edit-type-expense-label">
+                                <input type="radio" name="type" id="edit-type-expense" value="expense" onchange="handleTypeChange('edit', this.value)">
+                                <i class="fa-solid fa-arrow-trend-down"></i> Expense
+                            </label>
+                            <label class="type-toggle-btn income" id="edit-type-income-label">
+                                <input type="radio" name="type" id="edit-type-income" value="income" onchange="handleTypeChange('edit', this.value)">
+                                <i class="fa-solid fa-arrow-trend-up"></i> Income
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Title & Amount in Grid -->
+                    <div class="form-row">
+                        <div class="form-group col-6">
+                            <label for="edit-title" class="form-label">Title <span class="required">*</span></label>
+                            <div class="input-with-icon">
+                                <i class="fa-solid fa-tag input-icon"></i>
+                                <input type="text" id="edit-title" name="title" class="form-input" required maxlength="100">
+                            </div>
+                        </div>
+
+                        <div class="form-group col-6">
+                            <label for="edit-amount" class="form-label">Amount ($) <span class="required">*</span></label>
+                            <div class="input-with-icon">
+                                <i class="fa-solid fa-dollar-sign input-icon"></i>
+                                <input type="number" id="edit-amount" name="amount" class="form-input" step="0.01" min="0.01" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Category & Date in Grid -->
+                    <div class="form-row">
+                        <div class="form-group col-6">
+                            <label for="edit-category" class="form-label">Category <span class="required">*</span></label>
+                            <div class="input-with-icon">
+                                <i class="fa-solid fa-layer-group input-icon"></i>
+                                <select id="edit-category" name="category" class="form-input" required>
+                                    <!-- Populated dynamically -->
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group col-6">
+                            <label for="edit-date" class="form-label">Date <span class="required">*</span></label>
+                            <div class="input-with-icon">
+                                <i class="fa-solid fa-calendar-days input-icon"></i>
+                                <input type="date" id="edit-date" name="date" class="form-input" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="form-group">
+                        <label for="edit-description" class="form-label">Description <span class="text-muted">(Optional)</span></label>
+                        <textarea id="edit-description" name="description" class="form-input form-textarea" rows="2"></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="update-tx-btn">
+                        <i class="fa-solid fa-floppy-disk"></i> Update Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-overlay" id="delete-modal" aria-hidden="true">
+        <div class="modal-card modal-sm" role="dialog" aria-labelledby="delete-modal-title">
+            <div class="modal-header">
+                <h3 id="delete-modal-title" class="text-danger"><i class="fa-solid fa-triangle-exclamation"></i> Confirm Delete</h3>
+                <button type="button" class="btn-close" onclick="closeDeleteModal()" aria-label="Close modal">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form action="" method="POST" id="delete-tx-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="redirect_to" value="{{ request.endpoint or 'transactions' }}">
+                <div class="modal-body">
+                    <p>Are you sure you want to delete <strong id="delete-tx-name">this transaction</strong>?</p>
+                    <p class="text-muted text-sm mt-1">This action cannot be undone and will update your balance.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+                    <button type="submit" class="btn btn-danger" id="confirm-delete-btn">
+                        <i class="fa-solid fa-trash-can"></i> Delete Transaction
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Pass categories to frontend JS -->
+    <script>
+        window.EXPENSE_CATEGORIES = {{ expense_categories | tojson }};
+        window.INCOME_CATEGORIES = {{ income_categories | tojson }};
+    </script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container dashboard-container">
+    <!-- Dashboard Header & Month Filter -->
+    <div class="dashboard-header">
+        <div>
+            <h1 class="page-title">Financial Dashboard</h1>
+            <p class="page-subtitle">Track, analyze, and manage your cash flow and spending habits.</p>
+        </div>
+
+        <div class="dashboard-filter-action">
+            <form action="{{ url_for('index') }}" method="GET" class="month-filter-form" id="month-filter-form">
+                <label for="month-select" class="filter-label"><i class="fa-solid fa-calendar"></i> Month:</label>
+                <select name="month" id="month-select" class="form-select-sm" onchange="this.form.submit()">
+                    <option value="" {% if not selected_month %}selected{% endif %}>All Time</option>
+                    {% for m in available_months %}
+                        <option value="{{ m }}" {% if selected_month == m %}selected{% endif %}>
+                            {{ m }}
+                        </option>
+                    {% endfor %}
+                </select>
+                {% if selected_month %}
+                    <a href="{{ url_for('index') }}" class="btn-reset-filter" title="Reset to All Time">
+                        <i class="fa-solid fa-rotate-left"></i>
+                    </a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- Summary Metrics Cards Grid -->
+    <div class="metrics-grid">
+        <!-- Balance Card -->
+        <div class="metric-card metric-balance">
+            <div class="metric-card-content">
+                <span class="metric-label">Net Balance</span>
+                <h2 class="metric-value {% if summary.balance < 0 %}text-negative{% else %}text-positive{% endif %}" id="metric-balance-val">
+                    ${{ "{:,.2f}".format(summary.balance) }}
+                </h2>
+                <span class="metric-hint">Income minus expenses</span>
+            </div>
+            <div class="metric-icon-box bg-emerald-light">
+                <i class="fa-solid fa-wallet text-emerald"></i>
+            </div>
+        </div>
+
+        <!-- Total Income Card -->
+        <div class="metric-card">
+            <div class="metric-card-content">
+                <span class="metric-label">Total Income</span>
+                <h2 class="metric-value text-income" id="metric-income-val">
+                    +${{ "{:,.2f}".format(summary.total_income) }}
+                </h2>
+                <span class="metric-hint">Total cash inflow</span>
+            </div>
+            <div class="metric-icon-box bg-green-light">
+                <i class="fa-solid fa-arrow-trend-up text-green"></i>
+            </div>
+        </div>
+
+        <!-- Total Expenses Card -->
+        <div class="metric-card">
+            <div class="metric-card-content">
+                <span class="metric-label">Total Expenses</span>
+                <h2 class="metric-value text-expense" id="metric-expense-val">
+                    -${{ "{:,.2f}".format(summary.total_expenses) }}
+                </h2>
+                <span class="metric-hint">Total cash outflow</span>
+            </div>
+            <div class="metric-icon-box bg-red-light">
+                <i class="fa-solid fa-arrow-trend-down text-red"></i>
+            </div>
+        </div>
+
+        <!-- Transactions Count Card -->
+        <div class="metric-card">
+            <div class="metric-card-content">
+                <span class="metric-label">Transactions</span>
+                <h2 class="metric-value" id="metric-count-val">
+                    {{ summary.total_transactions }}
+                </h2>
+                <span class="metric-hint">Total recorded entries</span>
+            </div>
+            <div class="metric-icon-box bg-blue-light">
+                <i class="fa-solid fa-receipt text-blue"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="charts-grid">
+        <!-- Monthly Income vs Expense Bar Chart -->
+        <div class="card chart-card">
+            <div class="card-header">
+                <div>
+                    <h3 class="card-title"><i class="fa-solid fa-chart-column text-primary"></i> Monthly Income vs Expenses</h3>
+                    <p class="card-subtitle">Cash flow comparisons over time</p>
+                </div>
+            </div>
+            <div class="card-body chart-body">
+                <div class="chart-wrapper">
+                    <canvas id="monthlyTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Expense Category Breakdown Doughnut Chart -->
+        <div class="card chart-card">
+            <div class="card-header">
+                <div>
+                    <h3 class="card-title"><i class="fa-solid fa-chart-pie text-primary"></i> Expense by Category</h3>
+                    <p class="card-subtitle">Spending distribution across categories</p>
+                </div>
+            </div>
+            <div class="card-body chart-body">
+                <div class="chart-wrapper">
+                    <canvas id="categoryBreakdownChart"></canvas>
+                </div>
+                <div id="category-empty-notice" class="empty-chart-notice" style="display: none;">
+                    <i class="fa-solid fa-chart-pie text-muted"></i>
+                    <p>No expense data recorded for this period.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Transactions Table Section -->
+    <div class="card mt-4">
+        <div class="card-header table-card-header">
+            <div>
+                <h3 class="card-title"><i class="fa-solid fa-clock-rotate-left text-primary"></i> Recent Transactions</h3>
+                <p class="card-subtitle">Most recent activity recorded</p>
+            </div>
+            <a href="{{ url_for('transactions') }}" class="btn btn-outline-primary btn-sm">
+                View All Transactions <i class="fa-solid fa-arrow-right"></i>
+            </a>
+        </div>
+        <div class="card-body p-0">
+            {% if recent_transactions %}
+                <div class="table-responsive">
+                    <table class="table" id="recent-transactions-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Title</th>
+                                <th>Category</th>
+                                <th>Type</th>
+                                <th class="text-right">Amount</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tx in recent_transactions %}
+                                <tr>
+                                    <td class="text-nowrap text-muted"><i class="fa-regular fa-calendar text-xs"></i> {{ tx.date }}</td>
+                                    <td>
+                                        <div class="tx-title-cell">
+                                            <span class="tx-title font-medium">{{ tx.title }}</span>
+                                            {% if tx.description %}
+                                                <span class="tx-desc text-muted text-xs">{{ tx.description }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="category-pill">{{ tx.category }}</span>
+                                    </td>
+                                    <td>
+                                        {% if tx.type == 'income' %}
+                                            <span class="badge badge-income"><i class="fa-solid fa-arrow-up text-xs"></i> Income</span>
+                                        {% else %}
+                                            <span class="badge badge-expense"><i class="fa-solid fa-arrow-down text-xs"></i> Expense</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-right font-semibold text-nowrap {% if tx.type == 'income' %}text-income{% else %}text-expense{% endif %}">
+                                        {% if tx.type == 'income' %}+{% else %}-{% endif %}${{ "{:,.2f}".format(tx.amount) }}
+                                    </td>
+                                    <td class="text-center text-nowrap">
+                                        <button type="button" class="action-btn action-edit" title="Edit transaction" onclick="openEditModal({{ tx.id }})">
+                                            <i class="fa-solid fa-pen-to-square"></i>
+                                        </button>
+                                        <button type="button" class="action-btn action-delete" title="Delete transaction" onclick="openDeleteModal({{ tx.id }}, '{{ tx.title | escape }}')">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon-circle">
+                        <i class="fa-solid fa-receipt"></i>
+                    </div>
+                    <h3>No Transactions Found</h3>
+                    <p>Start tracking your expenses and income to see your analytics and dashboard charts.</p>
+                    <button type="button" class="btn btn-primary mt-2" onclick="openAddModal()">
+                        <i class="fa-solid fa-plus"></i> Add Your First Transaction
+                    </button>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Inline payload to initialize charts with real database data -->
+<script>
+    window.INITIAL_CHART_DATA = {
+        monthlyTrends: {{ monthly_trends | tojson }},
+        categoryBreakdown: {{ category_breakdown | tojson }}
+    };
+</script>
+{% endblock %}

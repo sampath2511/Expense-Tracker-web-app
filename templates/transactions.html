@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Transactions{% endblock %}
+
+{% block content %}
+<div class="container transactions-container">
+    <!-- Header with Quick Action -->
+    <div class="transactions-header">
+        <div>
+            <h1 class="page-title">Transaction History</h1>
+            <p class="page-subtitle">Search, filter, edit, and organize all your financial records.</p>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="openAddModal()">
+            <i class="fa-solid fa-plus"></i> Add Transaction
+        </button>
+    </div>
+
+    <!-- Filter & Search Toolbar Card -->
+    <div class="card filter-card mb-4">
+        <form action="{{ url_for('transactions') }}" method="GET" id="tx-filter-form" class="filter-form">
+            <div class="filter-grid">
+                <!-- Search by Title -->
+                <div class="filter-col col-search">
+                    <label for="filter-search" class="filter-col-label">Search</label>
+                    <div class="input-with-icon">
+                        <i class="fa-solid fa-magnifying-glass input-icon"></i>
+                        <input type="text" id="filter-search" name="search" class="form-input" placeholder="Search by title or note..." value="{{ filters.search }}">
+                    </div>
+                </div>
+
+                <!-- Filter by Type -->
+                <div class="filter-col">
+                    <label for="filter-type" class="filter-col-label">Type</label>
+                    <select id="filter-type" name="type" class="form-input">
+                        <option value="">All Types</option>
+                        <option value="income" {% if filters.type == 'income' %}selected{% endif %}>Income</option>
+                        <option value="expense" {% if filters.type == 'expense' %}selected{% endif %}>Expense</option>
+                    </select>
+                </div>
+
+                <!-- Filter by Category -->
+                <div class="filter-col">
+                    <label for="filter-category" class="filter-col-label">Category</label>
+                    <select id="filter-category" name="category" class="form-input">
+                        <option value="">All Categories</option>
+                        <optgroup label="Expense Categories">
+                            {% for cat in expense_categories %}
+                                <option value="{{ cat }}" {% if filters.category == cat %}selected{% endif %}>{{ cat }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        <optgroup label="Income Categories">
+                            {% for cat in income_categories %}
+                                <option value="{{ cat }}" {% if filters.category == cat %}selected{% endif %}>{{ cat }}</option>
+                            {% endfor %}
+                        </optgroup>
+                    </select>
+                </div>
+
+                <!-- Date Range: From Date -->
+                <div class="filter-col">
+                    <label for="filter-start-date" class="filter-col-label">From Date</label>
+                    <input type="date" id="filter-start-date" name="start_date" class="form-input" value="{{ filters.start_date }}">
+                </div>
+
+                <!-- Date Range: To Date -->
+                <div class="filter-col">
+                    <label for="filter-end-date" class="filter-col-label">To Date</label>
+                    <input type="date" id="filter-end-date" name="end_date" class="form-input" value="{{ filters.end_date }}">
+                </div>
+
+                <!-- Sort By & Order -->
+                <div class="filter-col">
+                    <label for="filter-sort-by" class="filter-col-label">Sort By</label>
+                    <select id="filter-sort-by" name="sort_by" class="form-input">
+                        <option value="date" {% if filters.sort_by == 'date' %}selected{% endif %}>Date</option>
+                        <option value="amount" {% if filters.sort_by == 'amount' %}selected{% endif %}>Amount</option>
+                        <option value="title" {% if filters.sort_by == 'title' %}selected{% endif %}>Title</option>
+                    </select>
+                </div>
+
+                <div class="filter-col">
+                    <label for="filter-sort-order" class="filter-col-label">Order</label>
+                    <select id="filter-sort-order" name="sort_order" class="form-input">
+                        <option value="desc" {% if filters.sort_order == 'desc' %}selected{% endif %}>Descending</option>
+                        <option value="asc" {% if filters.sort_order == 'asc' %}selected{% endif %}>Ascending</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Filter Action Buttons -->
+            <div class="filter-actions">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="fa-solid fa-filter"></i> Apply Filters
+                </button>
+                <a href="{{ url_for('transactions') }}" class="btn btn-outline-secondary btn-sm" id="reset-filters-btn">
+                    <i class="fa-solid fa-rotate-left"></i> Reset
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Filtered Results Summary Bar -->
+    <div class="summary-pill-bar mb-3">
+        <div class="summary-pill">
+            <span class="pill-label">Results:</span>
+            <span class="pill-value font-semibold">{{ transactions|length }} transactions</span>
+        </div>
+        <div class="summary-pill">
+            <span class="pill-label">Filtered Income:</span>
+            <span class="pill-value text-income font-semibold">+${{ "{:,.2f}".format(total_income) }}</span>
+        </div>
+        <div class="summary-pill">
+            <span class="pill-label">Filtered Expense:</span>
+            <span class="pill-value text-expense font-semibold">-${{ "{:,.2f}".format(total_expenses) }}</span>
+        </div>
+        <div class="summary-pill">
+            <span class="pill-label">Filtered Net:</span>
+            <span class="pill-value font-semibold {% if net_total < 0 %}text-negative{% else %}text-positive{% endif %}">
+                ${{ "{:,.2f}".format(net_total) }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Transactions Table -->
+    <div class="card">
+        <div class="card-body p-0">
+            {% if transactions %}
+                <div class="table-responsive">
+                    <table class="table" id="all-transactions-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Title & Details</th>
+                                <th>Category</th>
+                                <th>Type</th>
+                                <th class="text-right">Amount</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tx in transactions %}
+                                <tr>
+                                    <td class="text-nowrap text-muted">
+                                        <i class="fa-regular fa-calendar text-xs"></i> {{ tx.date }}
+                                    </td>
+                                    <td>
+                                        <div class="tx-title-cell">
+                                            <span class="tx-title font-medium">{{ tx.title }}</span>
+                                            {% if tx.description %}
+                                                <span class="tx-desc text-muted text-xs">{{ tx.description }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="category-pill">{{ tx.category }}</span>
+                                    </td>
+                                    <td>
+                                        {% if tx.type == 'income' %}
+                                            <span class="badge badge-income"><i class="fa-solid fa-arrow-up text-xs"></i> Income</span>
+                                        {% else %}
+                                            <span class="badge badge-expense"><i class="fa-solid fa-arrow-down text-xs"></i> Expense</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-right font-semibold text-nowrap {% if tx.type == 'income' %}text-income{% else %}text-expense{% endif %}">
+                                        {% if tx.type == 'income' %}+{% else %}-{% endif %}${{ "{:,.2f}".format(tx.amount) }}
+                                    </td>
+                                    <td class="text-center text-nowrap">
+                                        <button type="button" class="action-btn action-edit" title="Edit transaction" onclick="openEditModal({{ tx.id }})">
+                                            <i class="fa-solid fa-pen-to-square"></i>
+                                        </button>
+                                        <button type="button" class="action-btn action-delete" title="Delete transaction" onclick="openDeleteModal({{ tx.id }}, '{{ tx.title | escape }}')">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon-circle">
+                        <i class="fa-solid fa-filter-circle-xmark"></i>
+                    </div>
+                    <h3>No Transactions Found</h3>
+                    <p>No transactions match your current search or filter criteria. Try resetting filters or adding a new transaction.</p>
+                    <div class="empty-state-actions mt-3">
+                        <a href="{{ url_for('transactions') }}" class="btn btn-secondary btn-sm">Reset All Filters</a>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="openAddModal()">Add Transaction</button>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
