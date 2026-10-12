@@ -9,9 +9,12 @@ import sqlite3
 from datetime import datetime
 from contextlib import contextmanager
 
-# Resolve absolute path to expenses.db in the project directory
+# Resolve database and schema paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "expenses.db")
+if os.environ.get("VERCEL"):
+    DB_PATH = "/tmp/expenses.db"
+else:
+    DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "expenses.db"))
 SCHEMA_PATH = os.path.join(BASE_DIR, "schema.sql")
 
 # Standard Expense and Income categories
@@ -59,9 +62,20 @@ def get_db():
 
 def init_db():
     """Initialize the SQLite database using schema.sql."""
+    db_existed = os.path.exists(DB_PATH)
+    os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
     with get_db() as conn:
         with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
             conn.executescript(f.read())
+
+    # In serverless environments (like Vercel), populate with demo sample data if new
+    if not db_existed and os.environ.get("VERCEL"):
+        try:
+            import seed
+            for title, amount, tx_type, category, date_str, desc in seed.sample_data:
+                add_transaction(title, amount, tx_type, category, date_str, desc)
+        except Exception:
+            pass
 
 
 def add_transaction(title, amount, tx_type, category, date_str, description=""):

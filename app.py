@@ -19,9 +19,15 @@ from flask import (
 )
 import database
 
-app = Flask(__name__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, "templates"),
+    static_folder=os.path.join(BASE_DIR, "static"),
+)
 # Generate a secret key for session handling and flash messages
-app.secret_key = os.environ.get("SECRET_KEY", secrets.token_hex(24))
+# Use fixed fallback in serverless environments so CSRF tokens remain valid across invocations
+app.secret_key = os.environ.get("SECRET_KEY", "spendwise-session-secret-key-38d9f109a278")
 
 
 # Ensure database is initialized on startup
