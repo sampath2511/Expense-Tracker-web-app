@@ -10,9 +10,16 @@
             <h1 class="page-title">Transaction History</h1>
             <p class="page-subtitle">Search, filter, edit, and organize all your financial records.</p>
         </div>
-        <button type="button" class="btn btn-primary" onclick="openAddModal()">
-            <i class="fa-solid fa-plus"></i> Add Transaction
-        </button>
+        <div class="header-action-group">
+            {% if transactions %}
+            <button type="button" class="btn btn-outline-danger" id="btn-delete-all" onclick="openDeleteAllModal()">
+                <i class="fa-solid fa-trash-can"></i> Clear All
+            </button>
+            {% endif %}
+            <button type="button" class="btn btn-primary" onclick="openAddModal()">
+                <i class="fa-solid fa-plus"></i> Add Transaction
+            </button>
+        </div>
     </div>
 
     <!-- Filter & Search Toolbar Card -->

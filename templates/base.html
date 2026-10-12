@@ -282,6 +282,33 @@
         </div>
     </div>
 
+    <!-- Delete All Confirmation Modal -->
+    <div class="modal-overlay" id="delete-all-modal" aria-hidden="true">
+        <div class="modal-card modal-sm" role="dialog" aria-labelledby="delete-all-modal-title">
+            <div class="modal-header">
+                <h3 id="delete-all-modal-title" class="text-danger"><i class="fa-solid fa-triangle-exclamation"></i> Delete All Transactions</h3>
+                <button type="button" class="btn-close" onclick="closeDeleteAllModal()" aria-label="Close modal">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form action="{{ url_for('delete_all_transactions') }}" method="POST" id="delete-all-tx-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="redirect_to" value="{{ request.endpoint or 'transactions' }}">
+                <div class="modal-body">
+                    <p class="font-semibold text-danger"><i class="fa-solid fa-triangle-exclamation"></i> Permanent Action</p>
+                    <p class="mt-2">Are you sure you want to delete <strong>all transactions</strong>? This will permanently wipe all income and expense records and reset your balance to <strong>$0.00</strong>.</p>
+                    <p class="text-muted text-sm mt-2">This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeDeleteAllModal()">Cancel</button>
+                    <button type="submit" class="btn btn-danger" id="confirm-delete-all-btn">
+                        <i class="fa-solid fa-trash-can"></i> Yes, Delete All
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Pass categories to frontend JS -->
     <script>
         window.EXPENSE_CATEGORIES = {{ expense_categories | tojson }};

@@ -299,6 +299,36 @@ def delete_transaction(tx_id):
     return redirect(url_for(redirect_to))
 
 
+@app.route("/transactions/delete-all", methods=["POST"])
+def delete_all_transactions():
+    """
+    Handle deleting all transactions with confirmation and CSRF verification.
+    """
+    verify_csrf()
+    redirect_to = request.form.get("redirect_to", "transactions")
+    if redirect_to not in ("index", "transactions"):
+        redirect_to = "transactions"
+
+    deleted_count = 0
+    try:
+        deleted_count = database.delete_all_transactions()
+        if deleted_count > 0:
+            flash(f"Successfully deleted all {deleted_count} transactions. Your balance has been reset.", "success")
+        else:
+            flash("No transactions to delete. Your history is already empty.", "info")
+    except Exception as e:
+        flash(f"Error clearing transactions: {str(e)}", "danger")
+
+    if request.is_json or request.headers.get("Accept") == "application/json":
+        return jsonify({
+            "status": "success",
+            "deleted_count": deleted_count,
+            "message": f"Successfully deleted {deleted_count} transactions."
+        })
+
+    return redirect(url_for(redirect_to))
+
+
 # -------------------------------------------------------------
 # JSON API Endpoints (For Charts & AJAX Preload)
 # -------------------------------------------------------------

@@ -166,6 +166,13 @@ def delete_transaction(tx_id):
         return cursor.rowcount > 0
 
 
+def delete_all_transactions():
+    """Delete all transactions from the database and return count of deleted records."""
+    with get_db() as conn:
+        cursor = conn.execute("DELETE FROM transactions")
+        return cursor.rowcount
+
+
 def get_transaction_by_id(tx_id):
     """Retrieve a single transaction by ID."""
     with get_db() as conn:

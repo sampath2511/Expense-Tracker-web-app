@@ -199,10 +199,27 @@ function closeDeleteModal() {
     }
 }
 
+function openDeleteAllModal() {
+    const modal = document.getElementById("delete-all-modal");
+    if (!modal) return;
+
+    modal.classList.add("open");
+    modal.setAttribute("aria-hidden", "false");
+}
+
+function closeDeleteAllModal() {
+    const modal = document.getElementById("delete-all-modal");
+    if (modal) {
+        modal.classList.remove("open");
+        modal.setAttribute("aria-hidden", "true");
+    }
+}
+
 function closeAllModals() {
     closeAddModal();
     closeEditModal();
     closeDeleteModal();
+    closeDeleteAllModal();
 }
 
 /* ==========================================================================

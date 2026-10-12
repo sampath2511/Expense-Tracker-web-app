@@ -162,6 +162,63 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         self.assertEqual(res_missing.status_code, 200)
         self.assertIn(b"Transaction not found", res_missing.data)
 
+    def test_delete_all_transactions(self):
+        """Verify deleting all transactions clears database and resets metrics to zero."""
+        # 1. Populate database with diverse transactions
+        database.add_transaction("Salary", 3000.00, "income", "Salary", "2026-10-01")
+        database.add_transaction("Groceries", 150.00, "expense", "Food", "2026-10-02")
+        database.add_transaction("Metro Pass", 50.00, "expense", "Transportation", "2026-10-03")
+
+        self.assertEqual(len(database.get_all_transactions()), 3)
+        stats = database.get_summary_stats()
+        self.assertEqual(stats["balance"], 2800.00)
+
+        # 2. Delete all records
+        count = database.delete_all_transactions()
+        self.assertEqual(count, 3)
+
+        # 3. Verify clean state
+        self.assertEqual(len(database.get_all_transactions()), 0)
+        stats_cleared = database.get_summary_stats()
+        self.assertEqual(stats_cleared["total_income"], 0.0)
+        self.assertEqual(stats_cleared["total_expenses"], 0.0)
+        self.assertEqual(stats_cleared["balance"], 0.0)
+        self.assertEqual(stats_cleared["total_transactions"], 0)
+
+    def test_http_delete_all_transactions_with_csrf(self):
+        """Verify HTTP POST to /transactions/delete-all with CSRF validation and PRG redirect."""
+        database.add_transaction("Bonus", 500.00, "income", "Salary", "2026-10-01")
+        database.add_transaction("Dinner", 45.00, "expense", "Food", "2026-10-02")
+
+        # 1. Establish session
+        self.client.get("/")
+        with self.client.session_transaction() as sess:
+            token = sess.get("csrf_token")
+
+        # 2. Reject POST without CSRF
+        res_fail = self.client.post("/transactions/delete-all")
+        self.assertEqual(res_fail.status_code, 400)
+        self.assertEqual(len(database.get_all_transactions()), 2)
+
+        # 3. Accept POST with valid CSRF
+        res_ok = self.client.post(
+            "/transactions/delete-all",
+            data={"csrf_token": token, "redirect_to": "transactions"},
+            follow_redirects=True,
+        )
+        self.assertEqual(res_ok.status_code, 200)
+        self.assertEqual(len(database.get_all_transactions()), 0)
+        self.assertIn(b"Successfully deleted all 2 transactions", res_ok.data)
+
+        # 4. Subsequent delete when already empty
+        res_empty = self.client.post(
+            "/transactions/delete-all",
+            data={"csrf_token": token, "redirect_to": "transactions"},
+            follow_redirects=True,
+        )
+        self.assertEqual(res_empty.status_code, 200)
+        self.assertIn(b"No transactions to delete", res_empty.data)
+
     def test_filtering_and_searching(self):
         """Test filtering by type, category, date range, and title search."""
         database.add_transaction("Salary Payment", 3000.00, "income", "Salary", "2026-09-01")

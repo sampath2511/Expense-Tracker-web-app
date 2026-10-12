@@ -134,9 +134,16 @@
                 <h3 class="card-title"><i class="fa-solid fa-clock-rotate-left text-primary"></i> Recent Transactions</h3>
                 <p class="card-subtitle">Most recent activity recorded</p>
             </div>
-            <a href="{{ url_for('transactions') }}" class="btn btn-outline-primary btn-sm">
-                View All Transactions <i class="fa-solid fa-arrow-right"></i>
-            </a>
+            <div class="header-action-group">
+                {% if recent_transactions %}
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="openDeleteAllModal()">
+                    <i class="fa-solid fa-trash-can"></i> Clear All
+                </button>
+                {% endif %}
+                <a href="{{ url_for('transactions') }}" class="btn btn-outline-primary btn-sm">
+                    View All <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
         </div>
         <div class="card-body p-0">
             {% if recent_transactions %}

@@ -727,6 +727,25 @@ body {
     color: var(--text-primary);
 }
 
+.btn-outline-danger {
+    background-color: transparent;
+    color: var(--danger);
+    border-color: var(--danger-border);
+}
+
+.btn-outline-danger:hover {
+    background-color: var(--danger-bg);
+    color: var(--danger-hover);
+    border-color: var(--danger);
+}
+
+.header-action-group {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+}
+
 .btn-sm {
     padding: 0.4rem 0.85rem;
     font-size: 0.84rem;
