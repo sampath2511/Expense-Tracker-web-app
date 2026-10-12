@@ -278,7 +278,10 @@ def delete_transaction(tx_id):
     """
     verify_csrf()
     redirect_to = request.form.get("redirect_to", "transactions")
+    if redirect_to not in ("index", "transactions"):
+        redirect_to = "transactions"
 
+    success = False
     try:
         success = database.delete_transaction(tx_id)
         if success:
@@ -287,6 +290,11 @@ def delete_transaction(tx_id):
             flash("Transaction not found.", "warning")
     except Exception as e:
         flash(f"Error deleting transaction: {str(e)}", "danger")
+
+    if request.is_json or request.headers.get("Accept") == "application/json":
+        if success:
+            return jsonify({"status": "success", "message": "Transaction deleted successfully."})
+        return jsonify({"status": "warning", "message": "Transaction not found."}), 404
 
     return redirect(url_for(redirect_to))
 

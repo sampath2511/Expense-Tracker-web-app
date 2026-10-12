@@ -129,6 +129,39 @@ class ExpenseTrackerTestCase(unittest.TestCase):
         self.assertEqual(stats_after["balance"], 2000.00)
         self.assertEqual(stats_after["total_transactions"], 1)
 
+    def test_http_delete_transaction_with_csrf(self):
+        """Verify deleting a transaction via HTTP POST with CSRF validation."""
+        tx_id = database.add_transaction("McDonald's Dinner", 35.50, "expense", "Food", "2026-10-05")
+
+        # 1. Establish session to get CSRF token
+        self.client.get("/")
+        with self.client.session_transaction() as sess:
+            token = sess.get("csrf_token")
+
+        # 2. POST without CSRF should fail with 400
+        res_fail = self.client.post(f"/transactions/delete/{tx_id}")
+        self.assertEqual(res_fail.status_code, 400)
+        self.assertIsNotNone(database.get_transaction_by_id(tx_id))
+
+        # 3. POST with valid CSRF should delete and redirect following PRG pattern
+        res_ok = self.client.post(
+            f"/transactions/delete/{tx_id}",
+            data={"csrf_token": token, "redirect_to": "transactions"},
+            follow_redirects=True,
+        )
+        self.assertEqual(res_ok.status_code, 200)
+        self.assertIsNone(database.get_transaction_by_id(tx_id))
+        self.assertIn(b"Transaction deleted successfully", res_ok.data)
+
+        # 4. Deleting a non-existent transaction should not crash and should flash warning
+        res_missing = self.client.post(
+            f"/transactions/delete/99999",
+            data={"csrf_token": token, "redirect_to": "transactions"},
+            follow_redirects=True,
+        )
+        self.assertEqual(res_missing.status_code, 200)
+        self.assertIn(b"Transaction not found", res_missing.data)
+
     def test_filtering_and_searching(self):
         """Test filtering by type, category, date range, and title search."""
         database.add_transaction("Salary Payment", 3000.00, "income", "Salary", "2026-09-01")

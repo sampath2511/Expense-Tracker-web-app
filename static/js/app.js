@@ -167,16 +167,24 @@ function closeEditModal() {
     }
 }
 
-function openDeleteModal(txId, title) {
+function openDeleteModal(target, title) {
+    let txId = target;
+    if (typeof target === "object" && target !== null) {
+        txId = target.getAttribute("data-id") || target.dataset.id;
+        title = target.getAttribute("data-title") || target.dataset.title;
+    }
+
     const modal = document.getElementById("delete-modal");
     if (!modal) return;
 
     const form = document.getElementById("delete-tx-form");
-    form.action = `/transactions/delete/${txId}`;
+    if (form) {
+        form.action = `/transactions/delete/${txId}`;
+    }
 
     const titleElem = document.getElementById("delete-tx-name");
     if (titleElem) {
-        titleElem.textContent = `"${title}"`;
+        titleElem.textContent = title ? `"${title}"` : "this transaction";
     }
 
     modal.classList.add("open");

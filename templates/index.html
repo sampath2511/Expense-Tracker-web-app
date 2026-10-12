@@ -181,7 +181,7 @@
                                         <button type="button" class="action-btn action-edit" title="Edit transaction" onclick="openEditModal({{ tx.id }})">
                                             <i class="fa-solid fa-pen-to-square"></i>
                                         </button>
-                                        <button type="button" class="action-btn action-delete" title="Delete transaction" onclick="openDeleteModal({{ tx.id }}, '{{ tx.title | escape }}')">
+                                        <button type="button" class="action-btn action-delete" title="Delete transaction" data-id="{{ tx.id }}" data-title="{{ tx.title }}" onclick="openDeleteModal(this)">
                                             <i class="fa-solid fa-trash-can"></i>
                                         </button>
                                     </td>
